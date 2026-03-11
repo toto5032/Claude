@@ -5,68 +5,114 @@ This file provides guidance for AI assistants (like Claude) working in this repo
 ## Repository Overview
 
 - **Repository**: toto5032/Claude
-- **Status**: Newly initialized repository — project structure and tooling are not yet established.
+- **Tech Stack**: Python 3.11+ / FastAPI / SQLAlchemy 2.0 / SQLite
+- **Type**: CRUD web application with RESTful API
 
 ## Getting Started
 
-This repository does not yet have a defined tech stack, build system, or project structure. When adding initial project scaffolding, follow these principles:
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+```
 
-- Choose a tech stack appropriate for the project's goals.
-- Include a `README.md` describing the project purpose, setup instructions, and usage.
-- Add a `.gitignore` suited to the chosen language/framework.
-- Set up linting and formatting from the start.
+## Common Commands
+
+```bash
+# Run the dev server
+uvicorn app.main:app --reload
+
+# Run tests
+pytest
+pytest -v                 # verbose output
+
+# Linting & formatting
+ruff check .              # lint
+ruff check . --fix        # lint with auto-fix
+black .                   # format code
+black --check .           # check formatting without changes
+mypy app                  # type checking
+```
+
+## Project Structure
+
+```
+├── app/
+│   ├── main.py           # FastAPI app entry point, includes router
+│   ├── config.py          # Settings via pydantic-settings (env: APP_*)
+│   ├── database.py        # SQLAlchemy engine, session, Base class
+│   ├── models/            # SQLAlchemy ORM models
+│   │   └── item.py        # Item model
+│   ├── schemas/           # Pydantic request/response schemas
+│   │   └── item.py        # ItemCreate, ItemUpdate, ItemResponse
+│   └── routers/           # API route handlers
+│       └── items.py       # CRUD endpoints for /items
+├── tests/
+│   ├── conftest.py        # Test fixtures (client, db session)
+│   └── test_items.py      # Item endpoint tests
+├── alembic/               # Database migrations
+├── .github/workflows/
+│   └── ci.yml             # CI pipeline (lint, format, type check, test)
+├── pyproject.toml         # Project config (deps, ruff, black, mypy, pytest)
+├── .gitignore
+├── README.md
+└── CLAUDE.md              # This file
+```
+
+## Architecture & Patterns
+
+- **Layered structure**: routers → models/schemas → database
+- **Dependency injection**: FastAPI `Depends(get_db)` for database sessions
+- **Pydantic v2**: Schemas use `model_config = {"from_attributes": True}` for ORM compatibility
+- **SQLAlchemy 2.0 style**: `Mapped[]` type annotations for model columns
+- **Settings**: `pydantic-settings` with `APP_` env prefix (e.g., `APP_DATABASE_URL`)
 
 ## Development Workflow
 
 ### Branching
 
-- Feature branches should follow the pattern: `claude/<description>-<id>`
-- Develop on the designated feature branch, never push directly to `main`.
+- Feature branches: `claude/<description>-<id>`
+- Never push directly to `main`.
 
 ### Commits
 
-- Write clear, descriptive commit messages.
-- Keep commits focused — one logical change per commit.
-- Do not commit secrets, credentials, or `.env` files.
+- Clear, descriptive commit messages.
+- One logical change per commit.
+- Never commit secrets, `.env` files, or `*.db` files.
 
-### Code Quality
+### Adding New Resources
 
-- Prefer simple, readable code over clever abstractions.
-- Only add complexity when clearly justified by requirements.
-- Write tests alongside new functionality.
-- Validate at system boundaries (user input, external APIs); trust internal code.
+To add a new CRUD resource (e.g., "User"):
 
-## Project Structure
+1. Create model in `app/models/user.py` — add to `app/models/__init__.py`
+2. Create schemas in `app/schemas/user.py` — add to `app/schemas/__init__.py`
+3. Create router in `app/routers/users.py`
+4. Register router in `app/main.py` via `app.include_router()`
+5. Add tests in `tests/test_users.py`
 
-> **Note**: No project files exist yet. Update this section as the project takes shape.
+### Code Conventions
 
-```
-Claude/
-├── CLAUDE.md        # This file — AI assistant guidance
-└── (awaiting initial project scaffolding)
-```
+- Line length: 88 characters (Black default)
+- Imports sorted by ruff (isort rules)
+- Type hints required on all function signatures
+- Use `str | None` union syntax (Python 3.11+)
 
-## Conventions
+## CI Pipeline
 
-- Follow the established style of existing code when making changes.
-- Do not introduce new dependencies without justification.
-- Keep PRs small and focused for easier review.
+GitHub Actions runs on push/PR to `main`:
+1. Ruff lint check
+2. Black format check
+3. Mypy type check
+4. Pytest test suite
 
-## Common Commands
-
-> **Note**: Update this section once build tools and scripts are configured.
-
-```bash
-# (No commands configured yet)
-```
+Matrix: Python 3.11 and 3.12.
 
 ## AI Assistant Guidelines
 
-When working in this repository:
-
 1. **Read before writing** — Understand existing code before making changes.
-2. **Stay focused** — Only make changes that are directly requested or clearly necessary.
-3. **Don't over-engineer** — Avoid adding features, abstractions, or error handling beyond what's needed.
-4. **Be security-conscious** — Never commit secrets; avoid introducing OWASP top-10 vulnerabilities.
-5. **Test your changes** — Run available tests and linters before committing.
-6. **Update docs** — Keep this file and other documentation current as the project evolves.
+2. **Stay focused** — Only make changes that are directly requested.
+3. **Don't over-engineer** — No unnecessary abstractions or premature generalization.
+4. **Be security-conscious** — Never commit secrets; avoid OWASP top-10 vulnerabilities.
+5. **Test your changes** — Run `pytest` and `ruff check .` before committing.
+6. **Follow existing patterns** — Match the layered architecture when adding new features.
+7. **Update docs** — Keep this file and README current as the project evolves.
