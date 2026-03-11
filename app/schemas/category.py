@@ -1,24 +1,19 @@
 from pydantic import BaseModel
 
 
-class ItemCreate(BaseModel):
+class CategoryCreate(BaseModel):
     name: str
     description: str | None = None
-    category_id: int | None = None
 
 
-class ItemUpdate(BaseModel):
+class CategoryUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
-    is_active: bool | None = None
-    category_id: int | None = None
 
 
-class ItemResponse(BaseModel):
+class CategoryResponse(BaseModel):
     id: int
     name: str
     description: str | None
-    is_active: bool
-    category_id: int | None
 
     model_config = {"from_attributes": True}
