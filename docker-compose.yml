@@ -1,0 +1,15 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_DATABASE_URL=sqlite:///./app.db
+      - APP_SECRET_KEY=change-me-in-production
+      - APP_DEBUG=false
+    volumes:
+      - app-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  app-data:
