@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Categories{% endblock %}
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center;" class="mb-1">
+  <h1>Categories</h1>
+  {% if user %}
+    <a href="/pages/categories/new" class="btn btn-primary">New Category</a>
+  {% endif %}
+</div>
+{% if categories %}
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Description</th>
+        {% if user %}<th>Actions</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for cat in categories %}
+      <tr>
+        <td>{{ cat.id }}</td>
+        <td>{{ cat.name }}</td>
+        <td>{{ cat.description or "—" }}</td>
+        {% if user %}
+        <td class="actions">
+          <a href="/pages/categories/{{ cat.id }}/edit" class="btn btn-primary btn-sm">Edit</a>
+          <form method="post" action="/pages/categories/{{ cat.id }}/delete" style="display:inline;">
+            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this category?')">Delete</button>
+          </form>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="text-muted">No categories yet.</p>
+{% endif %}
+{% endblock %}

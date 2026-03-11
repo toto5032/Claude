@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ "Edit" if category else "New" }} Category{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 500px;">
+  <h1>{{ "Edit" if category else "New" }} Category</h1>
+  <form method="post">
+    <div class="form-group">
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" value="{{ category.name if category else '' }}" required>
+    </div>
+    <div class="form-group">
+      <label for="description">Description</label>
+      <textarea id="description" name="description" rows="3">{{ category.description if category and category.description else '' }}</textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">{{ "Update" if category else "Create" }}</button>
+    <a href="/pages/categories" class="btn" style="margin-left: 0.5rem;">Cancel</a>
+  </form>
+</div>
+{% endblock %}

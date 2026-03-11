@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Register{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 400px; margin: 2rem auto;">
+  <h1>Register</h1>
+  <form method="post" action="/pages/register">
+    <div class="form-group">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" required>
+    </div>
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" required>
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Register</button>
+  </form>
+  <p class="text-muted" style="margin-top: 1rem;">
+    Already have an account? <a href="/pages/login">Login</a>
+  </p>
+</div>
+{% endblock %}
