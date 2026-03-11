@@ -24,7 +24,10 @@ dev = [
 
 [build-system]
 requires = ["setuptools>=70.0"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
 
 [tool.ruff]
 target-version = "py311"
@@ -32,6 +35,7 @@ line-length = 88
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
+ignore = ["B008"]
 
 [tool.black]
 target-version = ["py311"]

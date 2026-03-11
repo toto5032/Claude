@@ -5,7 +5,8 @@ def test_health_check(client):
 
 
 def test_create_item(client):
-    response = client.post("/items/", json={"name": "Test Item", "description": "A test"})
+    payload = {"name": "Test Item", "description": "A test"}
+    response = client.post("/items/", json=payload)
     assert response.status_code == 201
     data = response.json()
     assert data["name"] == "Test Item"
