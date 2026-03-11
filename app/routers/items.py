@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_user
 from app.database import get_db
 from app.models.item import Item
+from app.models.user import User
 from app.schemas.item import ItemCreate, ItemResponse, ItemUpdate
 
 router = APIRouter(prefix="/items", tags=["items"])
@@ -22,7 +24,11 @@ def get_item(item_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=ItemResponse, status_code=201)
-def create_item(item_in: ItemCreate, db: Session = Depends(get_db)):
+def create_item(
+    item_in: ItemCreate,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
+):
     item = Item(**item_in.model_dump())
     db.add(item)
     db.commit()
@@ -31,7 +37,12 @@ def create_item(item_in: ItemCreate, db: Session = Depends(get_db)):
 
 
 @router.patch("/{item_id}", response_model=ItemResponse)
-def update_item(item_id: int, item_in: ItemUpdate, db: Session = Depends(get_db)):
+def update_item(
+    item_id: int,
+    item_in: ItemUpdate,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
+):
     item = db.query(Item).filter(Item.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -43,7 +54,11 @@ def update_item(item_id: int, item_in: ItemUpdate, db: Session = Depends(get_db)
 
 
 @router.delete("/{item_id}", status_code=204)
-def delete_item(item_id: int, db: Session = Depends(get_db)):
+def delete_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    _current_user: User = Depends(get_current_user),
+):
     item = db.query(Item).filter(Item.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")

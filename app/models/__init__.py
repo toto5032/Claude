@@ -1,4 +1,5 @@
 from app.models.category import Category
 from app.models.item import Item
+from app.models.user import User
 
-__all__ = ["Category", "Item"]
+__all__ = ["Category", "Item", "User"]

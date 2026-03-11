@@ -1,5 +1,6 @@
 from app.schemas.category import CategoryCreate, CategoryResponse, CategoryUpdate
 from app.schemas.item import ItemCreate, ItemResponse, ItemUpdate
+from app.schemas.user import Token, UserCreate, UserResponse
 
 __all__ = [
     "CategoryCreate",
@@ -8,4 +9,7 @@ __all__ = [
     "ItemCreate",
     "ItemResponse",
     "ItemUpdate",
+    "Token",
+    "UserCreate",
+    "UserResponse",
 ]
