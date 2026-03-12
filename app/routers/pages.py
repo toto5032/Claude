@@ -10,6 +10,7 @@ from app.config import settings
 from app.database import get_db
 from app.models.category import Category
 from app.models.item import Item
+from app.models.member import Member
 from app.models.user import User
 
 router = APIRouter(prefix="/pages", tags=["pages"])
@@ -44,7 +45,17 @@ def _render(request: Request, name: str, db: Session, **kwargs: object) -> HTMLR
 
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
-    return _render(request, "home.html", db)
+    members = db.query(Member).order_by(Member.sort_order).all()
+    return _render(request, "home.html", db, members=members)
+
+
+# ── Members ──
+
+
+@router.get("/members", response_class=HTMLResponse)
+def members_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+    members = db.query(Member).order_by(Member.sort_order).all()
+    return _render(request, "members.html", db, members=members)
 
 
 # ── Auth ──

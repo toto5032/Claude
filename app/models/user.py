@@ -12,3 +12,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(default=True)
+    role: Mapped[str] = mapped_column(String(20), default="fan")
+    display_name: Mapped[str | None] = mapped_column(String(255), default=None)
+    bio: Mapped[str | None] = mapped_column(String(1000), default=None)
+    avatar_url: Mapped[str | None] = mapped_column(String(500), default=None)

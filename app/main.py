@@ -2,15 +2,16 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.routers import auth, categories, items, pages, users
+from app.routers import auth, categories, items, members, pages, users
 
-app = FastAPI(title="Claude CRUD App", version="0.1.0")
+app = FastAPI(title="Monday Crew", version="0.1.0")
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 app.include_router(auth.router)
 app.include_router(categories.router)
 app.include_router(items.router)
+app.include_router(members.router)
 app.include_router(users.router)
 app.include_router(pages.router)
 

@@ -1,12 +1,41 @@
 {% extends "base.html" %}
-{% block title %}Home{% endblock %}
-{% block content %}
-<div class="card" style="text-align: center; padding: 3rem 1.5rem;">
-  <h1 style="font-size: 2rem; margin-bottom: 0.5rem;">Claude CRUD App</h1>
-  <p class="text-muted mb-1">A simple CRUD application built with FastAPI</p>
-  <div style="display: flex; gap: 1rem; justify-content: center;">
-    <a href="/pages/items" class="btn btn-primary">Items</a>
-    <a href="/pages/categories" class="btn btn-primary">Categories</a>
+{% block title %}Monday Crew{% endblock %}
+
+{% block hero %}
+<div class="hero">
+  <img src="/static/images/logo.png" alt="Monday Crew" class="hero-logo" onerror="this.style.display='none'">
+  <p>Rock your Monday</p>
+  <div class="hero-actions">
+    <a href="/pages/members" class="btn btn-outline-white">Members</a>
+    <a href="/pages/items" class="btn btn-outline-white">Items</a>
   </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="section">
+  <div class="section-header">
+    <h2>Members</h2>
+    <a href="/pages/members" class="text-muted">View all &rarr;</a>
+  </div>
+  {% if members %}
+  <div class="card-grid">
+    {% for member in members[:3] %}
+    <div class="member-card">
+      {% if member.photo_url %}
+        <img src="{{ member.photo_url }}" alt="{{ member.name }}" class="member-photo">
+      {% else %}
+        <div class="member-photo-placeholder">&#9835;</div>
+      {% endif %}
+      <div class="member-info">
+        <div class="member-name">{{ member.name }}</div>
+        <div class="member-role">{{ member.role_in_band }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-muted">No members registered yet.</p>
+  {% endif %}
 </div>
 {% endblock %}
