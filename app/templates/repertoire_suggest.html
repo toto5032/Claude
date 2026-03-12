@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Suggest a Song - Monday Crew{% endblock %}
+{% block content %}
+<div class="section" style="max-width:600px;margin:0 auto;">
+  <h1 class="section-title">Suggest a Song</h1>
+
+  <form method="post" action="/pages/repertoire/suggest">
+    <div class="form-group">
+      <label for="youtube_url">YouTube URL *</label>
+      <input type="url" id="youtube_url" name="youtube_url" placeholder="https://youtube.com/watch?v=..." required>
+    </div>
+    <div class="form-group">
+      <label for="title">Song Title *</label>
+      <input type="text" id="title" name="title" required>
+    </div>
+    <div class="form-group">
+      <label for="artist">Artist *</label>
+      <input type="text" id="artist" name="artist" required>
+    </div>
+    <div class="form-group">
+      <label for="genre">Genre</label>
+      <select id="genre" name="genre">
+        <option value="">Select genre</option>
+        <option value="Rock">Rock</option>
+        <option value="Pop">Pop</option>
+        <option value="Blues">Blues</option>
+        <option value="Jazz">Jazz</option>
+        <option value="Funk">Funk</option>
+        <option value="R&B">R&B</option>
+        <option value="Metal">Metal</option>
+        <option value="Acoustic">Acoustic</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="reason">Why this song?</label>
+      <textarea id="reason" name="reason" rows="3" placeholder="Why do you want the band to play this?"></textarea>
+    </div>
+    <button type="submit" class="btn btn-accent" style="width:100%;">Suggest</button>
+  </form>
+</div>
+{% endblock %}

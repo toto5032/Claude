@@ -12,6 +12,10 @@ class UserResponse(BaseModel):
     username: str
     email: str
     is_active: bool
+    role: str = "fan"
+    display_name: str | None = None
+    bio: str | None = None
+    avatar_url: str | None = None
 
     model_config = {"from_attributes": True}
 

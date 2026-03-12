@@ -10,7 +10,11 @@ from app.config import settings
 from app.database import get_db
 from app.models.category import Category
 from app.models.item import Item
+from app.models.member import Member
+from app.models.show import SetlistItem, Show
+from app.models.song import Song, SongComment, SongFanVote, SongVote
 from app.models.user import User
+from app.youtube import extract_video_id, get_thumbnail_url
 
 router = APIRouter(prefix="/pages", tags=["pages"])
 templates = Jinja2Templates(directory="app/templates")
@@ -44,7 +48,50 @@ def _render(request: Request, name: str, db: Session, **kwargs: object) -> HTMLR
 
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
-    return _render(request, "home.html", db)
+    members = db.query(Member).order_by(Member.sort_order).all()
+    candidates_raw = (
+        db.query(Song)
+        .filter(Song.status == "candidate")
+        .order_by(Song.created_at.desc())
+        .limit(3)
+        .all()
+    )
+    candidate_songs = []
+    for s in candidates_raw:
+        fan_votes = db.query(SongFanVote).filter(SongFanVote.song_id == s.id).count()
+        candidate_songs.append(
+            {
+                "id": s.id,
+                "title": s.title,
+                "artist": s.artist,
+                "thumbnail_url": s.thumbnail_url,
+                "fan_vote_count": fan_votes,
+            }
+        )
+    upcoming_shows = (
+        db.query(Show)
+        .filter(Show.status == "upcoming")
+        .order_by(Show.show_date)
+        .limit(3)
+        .all()
+    )
+    return _render(
+        request,
+        "home.html",
+        db,
+        members=members,
+        candidate_songs=candidate_songs,
+        upcoming_shows=upcoming_shows,
+    )
+
+
+# ── Members ──
+
+
+@router.get("/members", response_class=HTMLResponse)
+def members_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+    members = db.query(Member).order_by(Member.sort_order).all()
+    return _render(request, "members.html", db, members=members)
 
 
 # ── Auth ──
@@ -124,6 +171,424 @@ def logout() -> RedirectResponse:
     response = RedirectResponse(url="/pages/login", status_code=303)
     response.delete_cookie("access_token")
     return response
+
+
+# ── Repertoire ──
+
+
+@router.get("/repertoire", response_class=HTMLResponse)
+def repertoire_list(
+    request: Request,
+    status: str | None = None,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    query = db.query(Song)
+    if status and status in ("candidate", "practicing", "ready", "archived"):
+        query = query.filter(Song.status == status)
+    songs_raw = query.order_by(Song.created_at.desc()).all()
+    songs = []
+    for s in songs_raw:
+        member_votes = (
+            db.query(SongVote)
+            .filter(SongVote.song_id == s.id, SongVote.vote_type == "up")
+            .count()
+        )
+        fan_votes = db.query(SongFanVote).filter(SongFanVote.song_id == s.id).count()
+        songs.append(
+            {
+                "id": s.id,
+                "title": s.title,
+                "artist": s.artist,
+                "genre": s.genre,
+                "status": s.status,
+                "thumbnail_url": s.thumbnail_url,
+                "member_vote_count": member_votes,
+                "fan_vote_count": fan_votes,
+            }
+        )
+    return _render(request, "repertoire.html", db, songs=songs, current_status=status)
+
+
+@router.get("/repertoire/suggest", response_class=HTMLResponse)
+def repertoire_suggest_page(
+    request: Request, db: Session = Depends(get_db)
+) -> Response:
+    user = _current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/pages/login", status_code=303)
+    return _render(request, "repertoire_suggest.html", db)
+
+
+@router.post("/repertoire/suggest")
+def repertoire_suggest_submit(
+    request: Request,
+    youtube_url: str = Form(),
+    title: str = Form(),
+    artist: str = Form(),
+    genre: str = Form(""),
+    reason: str = Form(""),
+    db: Session = Depends(get_db),
+) -> Response:
+    user = _current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/pages/login", status_code=303)
+    video_id = extract_video_id(youtube_url)
+    if not video_id:
+        return _render(
+            request,
+            "repertoire_suggest.html",
+            db,
+            flash_message="Invalid YouTube URL",
+            flash_type="error",
+        )
+    song = Song(
+        title=title,
+        artist=artist,
+        youtube_url=youtube_url,
+        youtube_video_id=video_id,
+        thumbnail_url=get_thumbnail_url(video_id),
+        genre=genre or None,
+        reason=reason or None,
+        suggested_by_id=user.id,
+    )
+    db.add(song)
+    db.commit()
+    return RedirectResponse(url=f"/pages/repertoire/{song.id}", status_code=303)
+
+
+@router.get("/repertoire/{song_id}", response_class=HTMLResponse)
+def repertoire_detail(
+    song_id: int, request: Request, db: Session = Depends(get_db)
+) -> Response:
+    song = db.query(Song).filter(Song.id == song_id).first()
+    if not song:
+        return RedirectResponse(url="/pages/repertoire", status_code=303)
+    user = _current_user(request, db)
+    member_vote_count = (
+        db.query(SongVote)
+        .filter(SongVote.song_id == song_id, SongVote.vote_type == "up")
+        .count()
+    )
+    fan_vote_count = (
+        db.query(SongFanVote).filter(SongFanVote.song_id == song_id).count()
+    )
+    user_voted = False
+    user_fan_voted = False
+    if user:
+        user_voted = (
+            db.query(SongVote)
+            .filter(SongVote.song_id == song_id, SongVote.user_id == user.id)
+            .first()
+            is not None
+        )
+        user_fan_voted = (
+            db.query(SongFanVote)
+            .filter(SongFanVote.song_id == song_id, SongFanVote.user_id == user.id)
+            .first()
+            is not None
+        )
+    comments = (
+        db.query(SongComment)
+        .options(joinedload(SongComment.user))
+        .filter(SongComment.song_id == song_id)
+        .order_by(SongComment.created_at.desc())
+        .all()
+    )
+    suggested_by_name = "Unknown"
+    if song.suggested_by:
+        suggested_by_name = song.suggested_by.display_name or song.suggested_by.username
+    return _render(
+        request,
+        "repertoire_detail.html",
+        db,
+        song=song,
+        member_vote_count=member_vote_count,
+        fan_vote_count=fan_vote_count,
+        user_voted=user_voted,
+        user_fan_voted=user_fan_voted,
+        comments=comments,
+        suggested_by_name=suggested_by_name,
+    )
+
+
+@router.post("/repertoire/{song_id}/vote")
+def repertoire_vote(
+    song_id: int, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
+    user = _current_user(request, db)
+    if not user or user.role not in ("admin", "member"):
+        return RedirectResponse(url=f"/pages/repertoire/{song_id}", status_code=303)
+    existing = (
+        db.query(SongVote)
+        .filter(SongVote.song_id == song_id, SongVote.user_id == user.id)
+        .first()
+    )
+    if existing:
+        db.delete(existing)
+    else:
+        db.add(SongVote(song_id=song_id, user_id=user.id, vote_type="up"))
+    db.commit()
+    return RedirectResponse(url=f"/pages/repertoire/{song_id}", status_code=303)
+
+
+@router.post("/repertoire/{song_id}/fan-vote")
+def repertoire_fan_vote(
+    song_id: int, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
+    user = _current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/pages/login", status_code=303)
+    existing = (
+        db.query(SongFanVote)
+        .filter(SongFanVote.song_id == song_id, SongFanVote.user_id == user.id)
+        .first()
+    )
+    if existing:
+        db.delete(existing)
+    else:
+        db.add(SongFanVote(song_id=song_id, user_id=user.id))
+    db.commit()
+    return RedirectResponse(url=f"/pages/repertoire/{song_id}", status_code=303)
+
+
+@router.post("/repertoire/{song_id}/comment")
+def repertoire_comment(
+    song_id: int,
+    request: Request,
+    content: str = Form(),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    user = _current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/pages/login", status_code=303)
+    db.add(SongComment(content=content, song_id=song_id, user_id=user.id))
+    db.commit()
+    return RedirectResponse(url=f"/pages/repertoire/{song_id}", status_code=303)
+
+
+@router.post("/repertoire/comments/{comment_id}/delete")
+def repertoire_comment_delete(
+    comment_id: int, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
+    user = _current_user(request, db)
+    comment = db.query(SongComment).filter(SongComment.id == comment_id).first()
+    if comment and user and (comment.user_id == user.id or user.role == "admin"):
+        song_id = comment.song_id
+        db.delete(comment)
+        db.commit()
+        return RedirectResponse(url=f"/pages/repertoire/{song_id}", status_code=303)
+    return RedirectResponse(url="/pages/repertoire", status_code=303)
+
+
+# ── Shows ──
+
+
+@router.get("/shows", response_class=HTMLResponse)
+def shows_list(
+    request: Request,
+    status: str | None = None,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    query = db.query(Show)
+    if status and status in ("upcoming", "completed", "cancelled"):
+        query = query.filter(Show.status == status)
+    shows = query.order_by(Show.show_date.desc()).all()
+    return _render(request, "shows.html", db, shows=shows, current_status=status)
+
+
+@router.get("/shows/new", response_class=HTMLResponse)
+def show_new(request: Request, db: Session = Depends(get_db)) -> Response:
+    user = _current_user(request, db)
+    if not user or user.role != "admin":
+        return RedirectResponse(url="/pages/shows", status_code=303)
+    return _render(request, "show_form.html", db, show=None)
+
+
+@router.post("/shows/new")
+def show_create(
+    request: Request,
+    title: str = Form(),
+    venue: str = Form(),
+    address: str = Form(""),
+    show_date: str = Form(),
+    show_time: str = Form(""),
+    description: str = Form(""),
+    ticket_price: str = Form(""),
+    ticket_url: str = Form(""),
+    poster_url: str = Form(""),
+    db: Session = Depends(get_db),
+) -> Response:
+    user = _current_user(request, db)
+    if not user or user.role != "admin":
+        return RedirectResponse(url="/pages/shows", status_code=303)
+    from datetime import date as date_type
+    from datetime import time as time_type
+
+    parsed_date = date_type.fromisoformat(show_date)
+    parsed_time = time_type.fromisoformat(show_time) if show_time else None
+    show = Show(
+        title=title,
+        venue=venue,
+        address=address or None,
+        show_date=parsed_date,
+        show_time=parsed_time,
+        description=description or None,
+        ticket_price=ticket_price or None,
+        ticket_url=ticket_url or None,
+        poster_url=poster_url or None,
+        created_by_id=user.id,
+    )
+    db.add(show)
+    db.commit()
+    return RedirectResponse(url=f"/pages/shows/{show.id}", status_code=303)
+
+
+@router.get("/shows/{show_id}", response_class=HTMLResponse)
+def show_detail(
+    show_id: int, request: Request, db: Session = Depends(get_db)
+) -> Response:
+    show = db.query(Show).filter(Show.id == show_id).first()
+    if not show:
+        return RedirectResponse(url="/pages/shows", status_code=303)
+    setlist_items_raw = (
+        db.query(SetlistItem)
+        .filter(SetlistItem.show_id == show_id)
+        .order_by(SetlistItem.play_order)
+        .all()
+    )
+    setlist_items = []
+    for item in setlist_items_raw:
+        song = db.query(Song).filter(Song.id == item.song_id).first()
+        setlist_items.append(
+            {
+                "id": item.id,
+                "play_order": item.play_order,
+                "song_title": song.title if song else "Unknown",
+                "song_artist": song.artist if song else "",
+                "notes": item.notes,
+            }
+        )
+    available_songs = (
+        db.query(Song)
+        .filter(Song.status.in_(["ready", "practicing"]))
+        .order_by(Song.title)
+        .all()
+    )
+    return _render(
+        request,
+        "show_detail.html",
+        db,
+        show=show,
+        setlist_items=setlist_items,
+        available_songs=available_songs,
+    )
+
+
+@router.get("/shows/{show_id}/edit", response_class=HTMLResponse)
+def show_edit(
+    show_id: int, request: Request, db: Session = Depends(get_db)
+) -> Response:
+    user = _current_user(request, db)
+    if not user or user.role != "admin":
+        return RedirectResponse(url="/pages/shows", status_code=303)
+    show = db.query(Show).filter(Show.id == show_id).first()
+    if not show:
+        return RedirectResponse(url="/pages/shows", status_code=303)
+    return _render(request, "show_form.html", db, show=show)
+
+
+@router.post("/shows/{show_id}/edit")
+def show_update(
+    show_id: int,
+    request: Request,
+    title: str = Form(),
+    venue: str = Form(),
+    address: str = Form(""),
+    show_date: str = Form(),
+    show_time: str = Form(""),
+    description: str = Form(""),
+    ticket_price: str = Form(""),
+    ticket_url: str = Form(""),
+    poster_url: str = Form(""),
+    status: str = Form("upcoming"),
+    db: Session = Depends(get_db),
+) -> Response:
+    user = _current_user(request, db)
+    if not user or user.role != "admin":
+        return RedirectResponse(url="/pages/shows", status_code=303)
+    show = db.query(Show).filter(Show.id == show_id).first()
+    if not show:
+        return RedirectResponse(url="/pages/shows", status_code=303)
+    from datetime import date as date_type
+    from datetime import time as time_type
+
+    show.title = title
+    show.venue = venue
+    show.address = address or None
+    show.show_date = date_type.fromisoformat(show_date)
+    show.show_time = time_type.fromisoformat(show_time) if show_time else None
+    show.description = description or None
+    show.ticket_price = ticket_price or None
+    show.ticket_url = ticket_url or None
+    show.poster_url = poster_url or None
+    show.status = status
+    db.commit()
+    return RedirectResponse(url=f"/pages/shows/{show.id}", status_code=303)
+
+
+@router.post("/shows/{show_id}/delete")
+def show_delete(
+    show_id: int, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
+    user = _current_user(request, db)
+    if not user or user.role != "admin":
+        return RedirectResponse(url="/pages/shows", status_code=303)
+    show = db.query(Show).filter(Show.id == show_id).first()
+    if show:
+        db.delete(show)
+        db.commit()
+    return RedirectResponse(url="/pages/shows", status_code=303)
+
+
+@router.post("/shows/{show_id}/setlist")
+def show_setlist_add(
+    show_id: int,
+    request: Request,
+    song_id: int = Form(),
+    play_order: int = Form(1),
+    notes: str = Form(""),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    user = _current_user(request, db)
+    if not user or user.role != "admin":
+        return RedirectResponse(url=f"/pages/shows/{show_id}", status_code=303)
+    item = SetlistItem(
+        show_id=show_id,
+        song_id=song_id,
+        play_order=play_order,
+        notes=notes or None,
+    )
+    db.add(item)
+    db.commit()
+    return RedirectResponse(url=f"/pages/shows/{show_id}", status_code=303)
+
+
+@router.post("/shows/{show_id}/setlist/{item_id}/delete")
+def show_setlist_delete(
+    show_id: int, item_id: int, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
+    user = _current_user(request, db)
+    if not user or user.role != "admin":
+        return RedirectResponse(url=f"/pages/shows/{show_id}", status_code=303)
+    item = (
+        db.query(SetlistItem)
+        .filter(SetlistItem.id == item_id, SetlistItem.show_id == show_id)
+        .first()
+    )
+    if item:
+        db.delete(item)
+        db.commit()
+    return RedirectResponse(url=f"/pages/shows/{show_id}", status_code=303)
 
 
 # ── Items ──

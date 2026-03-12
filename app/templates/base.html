@@ -3,18 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Claude CRUD App{% endblock %}</title>
+  <title>{% block title %}Monday Crew{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
   <nav>
     <div class="container">
-      <a href="/" class="brand">Claude CRUD</a>
+      <a href="/" class="brand">Monday Crew</a>
       <div class="nav-links">
-        <a href="/pages/items">Items</a>
-        <a href="/pages/categories">Categories</a>
+        <a href="/pages/">Home</a>
+        <a href="/pages/members">Members</a>
+        <a href="/pages/repertoire">Repertoire</a>
+        <a href="/pages/shows">Shows</a>
         {% if user %}
-          <span class="text-muted">{{ user.username }}</span>
+          <span class="text-muted">{{ user.display_name or user.username }}</span>
           <a href="/pages/logout">Logout</a>
         {% else %}
           <a href="/pages/login">Login</a>
@@ -23,11 +25,25 @@
       </div>
     </div>
   </nav>
+
+  {% block hero %}{% endblock %}
+
   <div class="container">
     {% if flash_message %}
       <div class="flash {{ flash_type or 'success' }}">{{ flash_message }}</div>
     {% endif %}
     {% block content %}{% endblock %}
   </div>
+
+  <footer>
+    <div class="footer-brand">Monday Crew</div>
+    <div>
+      <a href="/pages/members">Members</a>
+      <a href="/pages/repertoire">Repertoire</a>
+      <a href="/pages/shows">Shows</a>
+      <a href="/pages/">Home</a>
+    </div>
+    <p style="margin-top: 1rem;">&copy; 2026 Monday Crew. All rights reserved.</p>
+  </footer>
 </body>
 </html>
