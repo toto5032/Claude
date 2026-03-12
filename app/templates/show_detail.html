@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}{{ show.title }} - Monday Crew{% endblock %}
+{% block content %}
+<div class="section" style="max-width:800px;margin:0 auto;">
+  <!-- Back link -->
+  <a href="/pages/shows" class="text-muted" style="font-size:0.85rem;">&larr; Back to Shows</a>
+
+  <!-- Show Header -->
+  <div style="margin-top:1.5rem;">
+    {% if show.poster_url %}
+      <div style="width:100%;max-height:400px;overflow:hidden;border-radius:8px;margin-bottom:1.5rem;">
+        <img src="{{ show.poster_url }}" alt="{{ show.title }}" style="width:100%;object-fit:cover;">
+      </div>
+    {% endif %}
+
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;">
+      <div>
+        <h1 style="margin-bottom:0.5rem;">{{ show.title }}</h1>
+        <div class="show-date" style="font-size:1.1rem;margin-bottom:0.25rem;">
+          {{ show.show_date.strftime('%Y년 %m월 %d일') }}{% if show.show_time %} {{ show.show_time.strftime('%H:%M') }}{% endif %}
+        </div>
+        <div class="show-venue" style="font-size:1rem;">{{ show.venue }}</div>
+        {% if show.address %}
+          <div class="text-muted" style="font-size:0.9rem;">{{ show.address }}</div>
+        {% endif %}
+      </div>
+      <div>
+        {% if show.status == "upcoming" %}
+          <span class="badge badge-candidate">Upcoming</span>
+        {% elif show.status == "completed" %}
+          <span class="badge badge-ready">Completed</span>
+        {% elif show.status == "cancelled" %}
+          <span class="badge" style="background:#fee2e2;color:#991b1b;">Cancelled</span>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if show.description %}
+      <div style="margin-top:1.5rem;line-height:1.8;color:var(--text);">
+        {{ show.description }}
+      </div>
+    {% endif %}
+
+    <!-- Ticket & Price -->
+    {% if show.ticket_price or show.ticket_url %}
+    <div style="margin-top:1.5rem;padding:1rem;background:var(--surface);border-radius:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+      {% if show.ticket_price %}
+        <div>
+          <span class="text-muted" style="font-size:0.85rem;">Ticket Price</span>
+          <div style="font-weight:700;font-size:1.1rem;">{{ show.ticket_price }}</div>
+        </div>
+      {% endif %}
+      {% if show.ticket_url %}
+        <a href="{{ show.ticket_url }}" target="_blank" rel="noopener" class="btn btn-accent">Buy Tickets</a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Admin actions -->
+    {% if user and user.role == "admin" %}
+    <div style="margin-top:1.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <a href="/pages/shows/{{ show.id }}/edit" class="btn btn-outline btn-sm">Edit Show</a>
+      <form method="post" action="/pages/shows/{{ show.id }}/delete" style="display:inline;" onsubmit="return confirm('Delete this show?');">
+        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Setlist -->
+  <div style="margin-top:3rem;">
+    <div class="section-header">
+      <h2>Setlist</h2>
+    </div>
+
+    {% if setlist_items %}
+    <div style="margin-bottom:1.5rem;">
+      {% for item in setlist_items %}
+      <div style="display:flex;align-items:center;gap:1rem;padding:0.75rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;margin-bottom:0.5rem;">
+        <div style="font-weight:700;color:var(--accent);min-width:2rem;text-align:center;">{{ item.play_order }}</div>
+        <div style="flex:1;">
+          <div style="font-weight:600;">{{ item.song_title or 'Unknown' }}</div>
+          <div class="text-muted" style="font-size:0.85rem;">{{ item.song_artist or '' }}</div>
+          {% if item.notes %}
+            <div class="text-muted" style="font-size:0.8rem;font-style:italic;margin-top:0.25rem;">{{ item.notes }}</div>
+          {% endif %}
+        </div>
+        {% if user and user.role == "admin" %}
+        <form method="post" action="/pages/shows/{{ show.id }}/setlist/{{ item.id }}/delete" style="display:inline;">
+          <button type="submit" class="btn btn-danger btn-sm" style="padding:0.2rem 0.4rem;font-size:0.7rem;">&#10005;</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+      <p class="text-muted">No setlist configured yet.</p>
+    {% endif %}
+
+    <!-- Add to setlist (admin) -->
+    {% if user and user.role == "admin" and available_songs %}
+    <div style="margin-top:1rem;padding:1rem;background:var(--surface);border-radius:8px;">
+      <div style="font-weight:600;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem;">Add Song to Setlist</div>
+      <form method="post" action="/pages/shows/{{ show.id }}/setlist" style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:flex-end;">
+        <div style="flex:1;min-width:200px;">
+          <label for="song_id" style="font-size:0.8rem;">Song</label>
+          <select name="song_id" id="song_id" required>
+            <option value="">Select song...</option>
+            {% for song in available_songs %}
+              <option value="{{ song.id }}">{{ song.title }} - {{ song.artist }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="width:80px;">
+          <label for="play_order" style="font-size:0.8rem;">Order</label>
+          <input type="number" name="play_order" id="play_order" value="{{ (setlist_items|length) + 1 }}" min="1">
+        </div>
+        <div style="flex:1;min-width:150px;">
+          <label for="notes" style="font-size:0.8rem;">Notes</label>
+          <input type="text" name="notes" id="notes" placeholder="Optional notes">
+        </div>
+        <button type="submit" class="btn btn-accent btn-sm">Add</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

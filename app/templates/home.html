@@ -8,6 +8,7 @@
   <div class="hero-actions">
     <a href="/pages/members" class="btn btn-outline-white">Members</a>
     <a href="/pages/repertoire" class="btn btn-outline-white">Repertoire</a>
+    <a href="/pages/shows" class="btn btn-outline-white">Shows</a>
   </div>
 </div>
 {% endblock %}
@@ -39,6 +40,32 @@
   <p class="text-muted">No members registered yet.</p>
   {% endif %}
 </div>
+
+<!-- Upcoming Shows Section -->
+{% if upcoming_shows %}
+<div class="section">
+  <div class="section-header">
+    <h2>Upcoming Shows</h2>
+    <a href="/pages/shows?status=upcoming" class="text-muted">View all &rarr;</a>
+  </div>
+  {% for show in upcoming_shows %}
+  <a href="/pages/shows/{{ show.id }}" style="text-decoration:none;color:inherit;">
+    <div class="show-card">
+      <div>
+        <div class="show-date">{{ show.show_date.strftime('%Y.%m.%d') }}{% if show.show_time %} {{ show.show_time.strftime('%H:%M') }}{% endif %}</div>
+        <div class="show-title">{{ show.title }}</div>
+        <div class="show-venue">{{ show.venue }}</div>
+      </div>
+      <div>
+        {% if show.ticket_url %}
+          <span class="btn btn-accent btn-sm">Tickets</span>
+        {% endif %}
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
 
 <!-- Repertoire Candidates Section -->
 {% if candidate_songs %}

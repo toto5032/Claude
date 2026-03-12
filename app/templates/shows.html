@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Shows - Monday Crew{% endblock %}
+{% block content %}
+<div class="section">
+  <div class="section-header">
+    <h2>Shows</h2>
+    {% if user and user.role == "admin" %}
+      <a href="/pages/shows/new" class="btn btn-accent btn-sm">+ New Show</a>
+    {% endif %}
+  </div>
+
+  <div class="tabs">
+    <a href="/pages/shows" class="tab {% if not current_status %}active{% endif %}">All</a>
+    <a href="/pages/shows?status=upcoming" class="tab {% if current_status == 'upcoming' %}active{% endif %}">Upcoming</a>
+    <a href="/pages/shows?status=completed" class="tab {% if current_status == 'completed' %}active{% endif %}">Past</a>
+    <a href="/pages/shows?status=cancelled" class="tab {% if current_status == 'cancelled' %}active{% endif %}">Cancelled</a>
+  </div>
+
+  {% if shows %}
+    {% for show in shows %}
+    <a href="/pages/shows/{{ show.id }}" style="text-decoration:none;color:inherit;">
+      <div class="show-card">
+        <div>
+          <div class="show-date">{{ show.show_date.strftime('%Y.%m.%d') }}{% if show.show_time %} {{ show.show_time.strftime('%H:%M') }}{% endif %}</div>
+          <div class="show-title">{{ show.title }}</div>
+          <div class="show-venue">{{ show.venue }}{% if show.address %} &middot; {{ show.address }}{% endif %}</div>
+        </div>
+        <div style="text-align:right;">
+          {% if show.status == "upcoming" %}
+            <span class="badge badge-candidate">Upcoming</span>
+          {% elif show.status == "completed" %}
+            <span class="badge badge-ready">Completed</span>
+          {% elif show.status == "cancelled" %}
+            <span class="badge" style="background:#fee2e2;color:#991b1b;">Cancelled</span>
+          {% endif %}
+          {% if show.ticket_url %}
+            <div style="margin-top:0.5rem;">
+              <span class="text-muted" style="font-size:0.8rem;">Tickets available</span>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  {% else %}
+    <p class="text-muted text-center" style="padding:3rem 0;">No shows scheduled yet.</p>
+  {% endif %}
+</div>
+{% endblock %}
