@@ -8,26 +8,22 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U app"]
       interval: 5s
       timeout: 3s
       retries: 5
-    restart: unless-stopped
 
   app:
     build: .
     ports:
       - "8000:8000"
     environment:
-      - APP_DATABASE_URL=postgresql://app:app-secret@db:5432/app
-      - APP_SECRET_KEY=change-me-in-production
-      - APP_DEBUG=false
+      APP_DATABASE_URL: postgresql://app:app-secret@db:5432/app
     depends_on:
       db:
         condition: service_healthy
-    restart: unless-stopped
 
 volumes:
-  db-data:
+  pgdata:

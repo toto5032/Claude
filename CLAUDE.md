@@ -5,22 +5,32 @@ This file provides guidance for AI assistants (like Claude) working in this repo
 ## Repository Overview
 
 - **Repository**: toto5032/Claude
-- **Tech Stack**: Python 3.11+ / FastAPI / SQLAlchemy 2.0 / SQLite
+- **Tech Stack**: Python 3.11+ / FastAPI / SQLAlchemy 2.0 / PostgreSQL
 - **Type**: CRUD web application with RESTful API
 
 ## Getting Started
 
 ```bash
+# With Docker (recommended)
+docker compose up --build
+
+# Local development
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
+docker compose up db -d    # start PostgreSQL
+alembic upgrade head       # run migrations
 ```
 
 ## Common Commands
 
 ```bash
-# Run the dev server
+# Run the dev server (local)
 uvicorn app.main:app --reload
+
+# Docker
+docker compose up --build     # start all services
+docker compose up db -d       # start only PostgreSQL
 
 # Run tests
 pytest
@@ -54,6 +64,9 @@ mypy app                  # type checking
 ├── .github/workflows/
 │   └── ci.yml             # CI pipeline (lint, format, type check, test)
 ├── pyproject.toml         # Project config (deps, ruff, black, mypy, pytest)
+├── Dockerfile             # Container image definition
+├── docker-compose.yml     # Docker Compose services (app + PostgreSQL)
+├── .dockerignore          # Docker build exclusions
 ├── .gitignore
 ├── README.md
 └── CLAUDE.md              # This file
@@ -99,7 +112,7 @@ To add a new CRUD resource (e.g., "User"):
 
 ## CI Pipeline
 
-GitHub Actions runs on push/PR to `main`:
+GitHub Actions runs on push/PR to `main` with PostgreSQL service container:
 1. Ruff lint check
 2. Black format check
 3. Mypy type check

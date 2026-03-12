@@ -94,6 +94,8 @@ mypy app              # Type check
 │   └── routers/          # API route handlers
 ├── tests/                # Test suite
 ├── alembic/              # Database migrations
+├── Dockerfile            # Container image definition
+├── docker-compose.yml    # Docker Compose services
 ├── pyproject.toml        # Project configuration
 └── CLAUDE.md             # AI assistant guidance
 ```
