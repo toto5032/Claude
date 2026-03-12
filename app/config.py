@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    database_url: str = "sqlite:///./app.db"
+    database_url: str = "postgresql://app:app-secret@localhost:5432/app"
     debug: bool = False
     secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 30
