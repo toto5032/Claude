@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Repertoire - Monday Crew{% endblock %}
+{% block content %}
+<div class="section">
+  <div class="section-header">
+    <h1 class="section-title" style="margin-bottom:0">Repertoire</h1>
+    {% if user %}
+      <a href="/pages/repertoire/suggest" class="btn btn-accent">Suggest a Song</a>
+    {% endif %}
+  </div>
+
+  <div class="tabs">
+    <a href="/pages/repertoire" class="tab {% if not current_status %}active{% endif %}">All</a>
+    <a href="/pages/repertoire?status=ready" class="tab {% if current_status == 'ready' %}active{% endif %}">Ready</a>
+    <a href="/pages/repertoire?status=practicing" class="tab {% if current_status == 'practicing' %}active{% endif %}">Practicing</a>
+    <a href="/pages/repertoire?status=candidate" class="tab {% if current_status == 'candidate' %}active{% endif %}">Candidates</a>
+    <a href="/pages/repertoire?status=archived" class="tab {% if current_status == 'archived' %}active{% endif %}">Archived</a>
+  </div>
+
+  {% if songs %}
+  {% for song in songs %}
+  <a href="/pages/repertoire/{{ song.id }}" style="text-decoration:none;color:inherit;">
+    <div class="card" style="display:flex;gap:1.25rem;align-items:center;padding:1rem 1.25rem;">
+      <div style="flex-shrink:0;width:120px;height:68px;border-radius:6px;overflow:hidden;background:var(--surface);">
+        {% if song.thumbnail_url %}
+          <img src="{{ song.thumbnail_url }}" alt="" style="width:100%;height:100%;object-fit:cover;">
+        {% else %}
+          <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:var(--muted);">&#9835;</div>
+        {% endif %}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;">{{ song.title }}</div>
+        <div class="text-muted">{{ song.artist }}{% if song.genre %} &middot; {{ song.genre }}{% endif %}</div>
+        <div class="text-muted" style="font-size:0.8rem;margin-top:0.25rem;">
+          Member votes: {{ song.member_vote_count }} &middot;
+          Fan votes: {{ song.fan_vote_count }}
+        </div>
+      </div>
+      <div style="flex-shrink:0;text-align:right;">
+        {% if song.status == 'ready' %}
+          <span class="badge badge-ready">Ready</span>
+        {% elif song.status == 'practicing' %}
+          <span class="badge badge-practicing">Practicing</span>
+        {% elif song.status == 'candidate' %}
+          <span class="badge badge-candidate">Candidate</span>
+        {% else %}
+          <span class="badge" style="background:#e2e3e5;color:#383d41;">Archived</span>
+        {% endif %}
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+  {% else %}
+    <p class="text-muted text-center" style="padding:2rem 0;">No songs found.</p>
+  {% endif %}
+</div>
+{% endblock %}

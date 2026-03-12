@@ -7,12 +7,13 @@
   <p>Rock your Monday</p>
   <div class="hero-actions">
     <a href="/pages/members" class="btn btn-outline-white">Members</a>
-    <a href="/pages/items" class="btn btn-outline-white">Items</a>
+    <a href="/pages/repertoire" class="btn btn-outline-white">Repertoire</a>
   </div>
 </div>
 {% endblock %}
 
 {% block content %}
+<!-- Members Section -->
 <div class="section">
   <div class="section-header">
     <h2>Members</h2>
@@ -38,4 +39,32 @@
   <p class="text-muted">No members registered yet.</p>
   {% endif %}
 </div>
+
+<!-- Repertoire Candidates Section -->
+{% if candidate_songs %}
+<div class="section">
+  <div class="section-header">
+    <h2>Vote on Songs</h2>
+    <a href="/pages/repertoire?status=candidate" class="text-muted">View all &rarr;</a>
+  </div>
+  <div class="card-grid">
+    {% for song in candidate_songs[:3] %}
+    <a href="/pages/repertoire/{{ song.id }}" style="text-decoration:none;color:inherit;">
+      <div class="card" style="padding:0;overflow:hidden;border-radius:8px;">
+        <div style="width:100%;aspect-ratio:16/9;background:var(--surface);overflow:hidden;">
+          {% if song.thumbnail_url %}
+            <img src="{{ song.thumbnail_url }}" alt="" style="width:100%;height:100%;object-fit:cover;">
+          {% endif %}
+        </div>
+        <div style="padding:1rem;">
+          <div style="font-weight:600;font-size:0.95rem;">{{ song.title }}</div>
+          <div class="text-muted" style="font-size:0.85rem;">{{ song.artist }}</div>
+          <div class="text-muted" style="font-size:0.8rem;margin-top:0.5rem;">&#10084; {{ song.fan_vote_count }} fan votes</div>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 {% endblock %}

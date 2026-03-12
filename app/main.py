@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.routers import auth, categories, items, members, pages, users
+from app.routers import auth, categories, items, members, pages, repertoire, users
 
 app = FastAPI(title="Monday Crew", version="0.1.0")
 
@@ -12,6 +12,7 @@ app.include_router(auth.router)
 app.include_router(categories.router)
 app.include_router(items.router)
 app.include_router(members.router)
+app.include_router(repertoire.router)
 app.include_router(users.router)
 app.include_router(pages.router)
 

@@ -11,7 +11,9 @@ from app.database import get_db
 from app.models.category import Category
 from app.models.item import Item
 from app.models.member import Member
+from app.models.song import Song, SongComment, SongFanVote, SongVote
 from app.models.user import User
+from app.youtube import extract_video_id, get_thumbnail_url
 
 router = APIRouter(prefix="/pages", tags=["pages"])
 templates = Jinja2Templates(directory="app/templates")
@@ -46,7 +48,28 @@ def _render(request: Request, name: str, db: Session, **kwargs: object) -> HTMLR
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     members = db.query(Member).order_by(Member.sort_order).all()
-    return _render(request, "home.html", db, members=members)
+    candidates_raw = (
+        db.query(Song)
+        .filter(Song.status == "candidate")
+        .order_by(Song.created_at.desc())
+        .limit(3)
+        .all()
+    )
+    candidate_songs = []
+    for s in candidates_raw:
+        fan_votes = db.query(SongFanVote).filter(SongFanVote.song_id == s.id).count()
+        candidate_songs.append(
+            {
+                "id": s.id,
+                "title": s.title,
+                "artist": s.artist,
+                "thumbnail_url": s.thumbnail_url,
+                "fan_vote_count": fan_votes,
+            }
+        )
+    return _render(
+        request, "home.html", db, members=members, candidate_songs=candidate_songs
+    )
 
 
 # ── Members ──
@@ -135,6 +158,213 @@ def logout() -> RedirectResponse:
     response = RedirectResponse(url="/pages/login", status_code=303)
     response.delete_cookie("access_token")
     return response
+
+
+# ── Repertoire ──
+
+
+@router.get("/repertoire", response_class=HTMLResponse)
+def repertoire_list(
+    request: Request,
+    status: str | None = None,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    query = db.query(Song)
+    if status and status in ("candidate", "practicing", "ready", "archived"):
+        query = query.filter(Song.status == status)
+    songs_raw = query.order_by(Song.created_at.desc()).all()
+    songs = []
+    for s in songs_raw:
+        member_votes = (
+            db.query(SongVote)
+            .filter(SongVote.song_id == s.id, SongVote.vote_type == "up")
+            .count()
+        )
+        fan_votes = db.query(SongFanVote).filter(SongFanVote.song_id == s.id).count()
+        songs.append(
+            {
+                "id": s.id,
+                "title": s.title,
+                "artist": s.artist,
+                "genre": s.genre,
+                "status": s.status,
+                "thumbnail_url": s.thumbnail_url,
+                "member_vote_count": member_votes,
+                "fan_vote_count": fan_votes,
+            }
+        )
+    return _render(request, "repertoire.html", db, songs=songs, current_status=status)
+
+
+@router.get("/repertoire/suggest", response_class=HTMLResponse)
+def repertoire_suggest_page(
+    request: Request, db: Session = Depends(get_db)
+) -> Response:
+    user = _current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/pages/login", status_code=303)
+    return _render(request, "repertoire_suggest.html", db)
+
+
+@router.post("/repertoire/suggest")
+def repertoire_suggest_submit(
+    request: Request,
+    youtube_url: str = Form(),
+    title: str = Form(),
+    artist: str = Form(),
+    genre: str = Form(""),
+    reason: str = Form(""),
+    db: Session = Depends(get_db),
+) -> Response:
+    user = _current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/pages/login", status_code=303)
+    video_id = extract_video_id(youtube_url)
+    if not video_id:
+        return _render(
+            request,
+            "repertoire_suggest.html",
+            db,
+            flash_message="Invalid YouTube URL",
+            flash_type="error",
+        )
+    song = Song(
+        title=title,
+        artist=artist,
+        youtube_url=youtube_url,
+        youtube_video_id=video_id,
+        thumbnail_url=get_thumbnail_url(video_id),
+        genre=genre or None,
+        reason=reason or None,
+        suggested_by_id=user.id,
+    )
+    db.add(song)
+    db.commit()
+    return RedirectResponse(url=f"/pages/repertoire/{song.id}", status_code=303)
+
+
+@router.get("/repertoire/{song_id}", response_class=HTMLResponse)
+def repertoire_detail(
+    song_id: int, request: Request, db: Session = Depends(get_db)
+) -> Response:
+    song = db.query(Song).filter(Song.id == song_id).first()
+    if not song:
+        return RedirectResponse(url="/pages/repertoire", status_code=303)
+    user = _current_user(request, db)
+    member_vote_count = (
+        db.query(SongVote)
+        .filter(SongVote.song_id == song_id, SongVote.vote_type == "up")
+        .count()
+    )
+    fan_vote_count = (
+        db.query(SongFanVote).filter(SongFanVote.song_id == song_id).count()
+    )
+    user_voted = False
+    user_fan_voted = False
+    if user:
+        user_voted = (
+            db.query(SongVote)
+            .filter(SongVote.song_id == song_id, SongVote.user_id == user.id)
+            .first()
+            is not None
+        )
+        user_fan_voted = (
+            db.query(SongFanVote)
+            .filter(SongFanVote.song_id == song_id, SongFanVote.user_id == user.id)
+            .first()
+            is not None
+        )
+    comments = (
+        db.query(SongComment)
+        .options(joinedload(SongComment.user))
+        .filter(SongComment.song_id == song_id)
+        .order_by(SongComment.created_at.desc())
+        .all()
+    )
+    suggested_by_name = "Unknown"
+    if song.suggested_by:
+        suggested_by_name = song.suggested_by.display_name or song.suggested_by.username
+    return _render(
+        request,
+        "repertoire_detail.html",
+        db,
+        song=song,
+        member_vote_count=member_vote_count,
+        fan_vote_count=fan_vote_count,
+        user_voted=user_voted,
+        user_fan_voted=user_fan_voted,
+        comments=comments,
+        suggested_by_name=suggested_by_name,
+    )
+
+
+@router.post("/repertoire/{song_id}/vote")
+def repertoire_vote(
+    song_id: int, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
+    user = _current_user(request, db)
+    if not user or user.role not in ("admin", "member"):
+        return RedirectResponse(url=f"/pages/repertoire/{song_id}", status_code=303)
+    existing = (
+        db.query(SongVote)
+        .filter(SongVote.song_id == song_id, SongVote.user_id == user.id)
+        .first()
+    )
+    if existing:
+        db.delete(existing)
+    else:
+        db.add(SongVote(song_id=song_id, user_id=user.id, vote_type="up"))
+    db.commit()
+    return RedirectResponse(url=f"/pages/repertoire/{song_id}", status_code=303)
+
+
+@router.post("/repertoire/{song_id}/fan-vote")
+def repertoire_fan_vote(
+    song_id: int, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
+    user = _current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/pages/login", status_code=303)
+    existing = (
+        db.query(SongFanVote)
+        .filter(SongFanVote.song_id == song_id, SongFanVote.user_id == user.id)
+        .first()
+    )
+    if existing:
+        db.delete(existing)
+    else:
+        db.add(SongFanVote(song_id=song_id, user_id=user.id))
+    db.commit()
+    return RedirectResponse(url=f"/pages/repertoire/{song_id}", status_code=303)
+
+
+@router.post("/repertoire/{song_id}/comment")
+def repertoire_comment(
+    song_id: int,
+    request: Request,
+    content: str = Form(),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    user = _current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/pages/login", status_code=303)
+    db.add(SongComment(content=content, song_id=song_id, user_id=user.id))
+    db.commit()
+    return RedirectResponse(url=f"/pages/repertoire/{song_id}", status_code=303)
+
+
+@router.post("/repertoire/comments/{comment_id}/delete")
+def repertoire_comment_delete(
+    comment_id: int, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
+    user = _current_user(request, db)
+    comment = db.query(SongComment).filter(SongComment.id == comment_id).first()
+    if comment and user and (comment.user_id == user.id or user.role == "admin"):
+        song_id = comment.song_id
+        db.delete(comment)
+        db.commit()
+        return RedirectResponse(url=f"/pages/repertoire/{song_id}", status_code=303)
+    return RedirectResponse(url="/pages/repertoire", status_code=303)
 
 
 # ── Items ──

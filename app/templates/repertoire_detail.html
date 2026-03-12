@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}{{ song.title }} - Monday Crew{% endblock %}
+{% block content %}
+<div class="section">
+  <!-- YouTube Player -->
+  <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;margin-bottom:1.5rem;background:#000;">
+    <iframe
+      src="https://www.youtube.com/embed/{{ song.youtube_video_id }}"
+      style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen>
+    </iframe>
+  </div>
+
+  <!-- Song Info -->
+  <h1 style="margin-bottom:0.25rem;">{{ song.title }}</h1>
+  <p class="text-muted" style="margin-bottom:1rem;">
+    {{ song.artist }}{% if song.genre %} &middot; {{ song.genre }}{% endif %}
+  </p>
+
+  <div style="display:flex;gap:0.75rem;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;">
+    {% if song.status == 'ready' %}
+      <span class="badge badge-ready">Ready</span>
+    {% elif song.status == 'practicing' %}
+      <span class="badge badge-practicing">Practicing</span>
+    {% elif song.status == 'candidate' %}
+      <span class="badge badge-candidate">Candidate</span>
+    {% else %}
+      <span class="badge" style="background:#e2e3e5;color:#383d41;">Archived</span>
+    {% endif %}
+
+    {% if user and user.role in ('admin', 'member') %}
+      <form method="post" action="/pages/repertoire/{{ song.id }}/vote" style="display:inline;">
+        <button type="submit" class="btn btn-sm {% if user_voted %}btn-primary{% else %}btn-outline{% endif %}">
+          {% if user_voted %}Voted{% else %}Member Vote{% endif %}
+        </button>
+      </form>
+    {% endif %}
+
+    {% if user %}
+      <form method="post" action="/pages/repertoire/{{ song.id }}/fan-vote" style="display:inline;">
+        <button type="submit" class="btn btn-sm {% if user_fan_voted %}btn-accent{% else %}btn-outline{% endif %}">
+          &#10084; {% if user_fan_voted %}Voted{% else %}Fan Vote{% endif %}
+        </button>
+      </form>
+    {% endif %}
+  </div>
+
+  <!-- Vote Counts -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div style="display:flex;gap:2rem;">
+      <div>
+        <div class="text-muted" style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Member Votes</div>
+        <div style="font-size:1.5rem;font-weight:700;">{{ member_vote_count }}</div>
+      </div>
+      <div>
+        <div class="text-muted" style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;">Fan Votes</div>
+        <div style="font-size:1.5rem;font-weight:700;">{{ fan_vote_count }}</div>
+      </div>
+    </div>
+  </div>
+
+  {% if song.reason %}
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="text-muted" style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.5rem;">Suggestion Reason</div>
+    <p>{{ song.reason }}</p>
+  </div>
+  {% endif %}
+
+  <!-- Comments / Memos -->
+  <div class="section-header">
+    <h2 style="margin-bottom:0;">Notes ({{ comments|length }})</h2>
+  </div>
+
+  {% if user %}
+  <form method="post" action="/pages/repertoire/{{ song.id }}/comment" style="margin-bottom:1.5rem;">
+    <div style="display:flex;gap:0.5rem;">
+      <input type="text" name="content" placeholder="Add a note (key change, arrangement ideas...)" required style="flex:1;">
+      <button type="submit" class="btn btn-primary">Post</button>
+    </div>
+  </form>
+  {% endif %}
+
+  {% for comment in comments %}
+  <div class="card" style="padding:0.75rem 1rem;display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <span style="font-weight:600;font-size:0.85rem;">{{ comment.user.display_name or comment.user.username }}</span>
+      <span class="text-muted" style="font-size:0.8rem;">&middot; {{ comment.created_at.strftime('%Y.%m.%d') }}</span>
+      <p style="margin-top:0.25rem;font-size:0.9rem;">{{ comment.content }}</p>
+    </div>
+    {% if user and (comment.user_id == user.id or user.role == 'admin') %}
+    <form method="post" action="/pages/repertoire/comments/{{ comment.id }}/delete" style="flex-shrink:0;">
+      <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this note?')">Del</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  {% if not comments %}
+    <p class="text-muted" style="padding:1rem 0;">No notes yet.</p>
+  {% endif %}
+
+  <div class="text-muted" style="margin-top:2rem;font-size:0.8rem;">
+    Suggested by {{ suggested_by_name }} &middot; {{ song.created_at.strftime('%Y.%m.%d') }}
+  </div>
+</div>
+{% endblock %}
