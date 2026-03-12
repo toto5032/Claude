@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from jose import JWTError, jwt  # type: ignore[import-untyped]
 from sqlalchemy.orm import Session, joinedload
+from starlette.responses import Response
 
 from app.auth import ALGORITHM, create_access_token, hash_password, verify_password
 from app.config import settings
@@ -60,7 +61,7 @@ def login_submit(
     username: str = Form(),
     password: str = Form(),
     db: Session = Depends(get_db),
-) -> HTMLResponse | RedirectResponse:
+) -> Response:
     user = db.query(User).filter(User.username == username).first()
     if not user or not verify_password(password, user.hashed_password):
         return _render(
@@ -88,7 +89,7 @@ def register_submit(
     email: str = Form(),
     password: str = Form(),
     db: Session = Depends(get_db),
-) -> HTMLResponse | RedirectResponse:
+) -> Response:
     if db.query(User).filter(User.username == username).first():
         return _render(
             request,
@@ -161,7 +162,7 @@ def item_create(
 @router.get("/items/{item_id}/edit", response_class=HTMLResponse)
 def item_edit(
     item_id: int, request: Request, db: Session = Depends(get_db)
-) -> HTMLResponse | RedirectResponse:
+) -> Response:
     item = db.query(Item).filter(Item.id == item_id).first()
     if not item:
         return RedirectResponse(url="/pages/items", status_code=303)
@@ -229,7 +230,7 @@ def category_create(
 @router.get("/categories/{category_id}/edit", response_class=HTMLResponse)
 def category_edit(
     category_id: int, request: Request, db: Session = Depends(get_db)
-) -> HTMLResponse | RedirectResponse:
+) -> Response:
     category = db.query(Category).filter(Category.id == category_id).first()
     if not category:
         return RedirectResponse(url="/pages/categories", status_code=303)
