@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+from jose import JWTError, jwt  # type: ignore[import-untyped]
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -16,20 +16,23 @@ ALGORITHM = "HS256"
 
 
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    result: bytes = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+    return result.decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return bcrypt.checkpw(plain.encode(), hashed.encode())
+    result: bool = bcrypt.checkpw(plain.encode(), hashed.encode())
+    return result
 
 
 def create_access_token(subject: str) -> str:
     expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
-    return jwt.encode(
+    token: str = jwt.encode(
         {"sub": subject, "exp": expire},
         settings.secret_key,
         algorithm=ALGORITHM,
     )
+    return token
 
 
 def get_current_user(

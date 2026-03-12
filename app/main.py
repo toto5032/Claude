@@ -16,7 +16,7 @@ app.include_router(pages.router)
 
 
 @app.get("/")
-def root():
+def root() -> RedirectResponse:
     return RedirectResponse(url="/pages/")
 
 

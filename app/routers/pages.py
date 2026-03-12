@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from jose import JWTError, jwt  # type: ignore[import-untyped]
 from sqlalchemy.orm import Session, joinedload
 
-from app.auth import create_access_token, hash_password, verify_password
+from app.auth import ALGORITHM, create_access_token, hash_password, verify_password
+from app.config import settings
 from app.database import get_db
 from app.models.category import Category
 from app.models.item import Item
@@ -17,11 +19,6 @@ def _current_user(request: Request, db: Session) -> User | None:
     token = request.cookies.get("access_token")
     if not token:
         return None
-    from jose import JWTError, jwt
-
-    from app.auth import ALGORITHM
-    from app.config import settings
-
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
         username: str | None = payload.get("sub")
@@ -32,12 +29,12 @@ def _current_user(request: Request, db: Session) -> User | None:
     return db.query(User).filter(User.username == username).first()
 
 
-def _ctx(request: Request, db: Session, **kwargs):
+def _ctx(request: Request, db: Session, **kwargs: object) -> dict[str, object]:
     user = _current_user(request, db)
     return {"user": user, **kwargs}
 
 
-def _render(request: Request, name: str, db: Session, **kwargs):
+def _render(request: Request, name: str, db: Session, **kwargs: object) -> HTMLResponse:
     return templates.TemplateResponse(request, name, _ctx(request, db, **kwargs))
 
 
@@ -45,7 +42,7 @@ def _render(request: Request, name: str, db: Session, **kwargs):
 
 
 @router.get("/", response_class=HTMLResponse)
-def home(request: Request, db: Session = Depends(get_db)):
+def home(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     return _render(request, "home.html", db)
 
 
@@ -53,7 +50,7 @@ def home(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/login", response_class=HTMLResponse)
-def login_page(request: Request, db: Session = Depends(get_db)):
+def login_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     return _render(request, "login.html", db)
 
 
@@ -63,7 +60,7 @@ def login_submit(
     username: str = Form(),
     password: str = Form(),
     db: Session = Depends(get_db),
-):
+) -> HTMLResponse | RedirectResponse:
     user = db.query(User).filter(User.username == username).first()
     if not user or not verify_password(password, user.hashed_password):
         return _render(
@@ -80,7 +77,7 @@ def login_submit(
 
 
 @router.get("/register", response_class=HTMLResponse)
-def register_page(request: Request, db: Session = Depends(get_db)):
+def register_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     return _render(request, "register.html", db)
 
 
@@ -91,7 +88,7 @@ def register_submit(
     email: str = Form(),
     password: str = Form(),
     db: Session = Depends(get_db),
-):
+) -> HTMLResponse | RedirectResponse:
     if db.query(User).filter(User.username == username).first():
         return _render(
             request,
@@ -122,7 +119,7 @@ def register_submit(
 
 
 @router.get("/logout")
-def logout():
+def logout() -> RedirectResponse:
     response = RedirectResponse(url="/pages/login", status_code=303)
     response.delete_cookie("access_token")
     return response
@@ -132,13 +129,13 @@ def logout():
 
 
 @router.get("/items", response_class=HTMLResponse)
-def items_list(request: Request, db: Session = Depends(get_db)):
+def items_list(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     items = db.query(Item).options(joinedload(Item.category)).all()
     return _render(request, "items.html", db, items=items)
 
 
 @router.get("/items/new", response_class=HTMLResponse)
-def item_new(request: Request, db: Session = Depends(get_db)):
+def item_new(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     categories = db.query(Category).all()
     return _render(request, "item_form.html", db, item=None, categories=categories)
 
@@ -150,7 +147,7 @@ def item_create(
     description: str = Form(""),
     category_id: str = Form(""),
     db: Session = Depends(get_db),
-):
+) -> RedirectResponse:
     item = Item(
         name=name,
         description=description or None,
@@ -162,7 +159,9 @@ def item_create(
 
 
 @router.get("/items/{item_id}/edit", response_class=HTMLResponse)
-def item_edit(item_id: int, request: Request, db: Session = Depends(get_db)):
+def item_edit(
+    item_id: int, request: Request, db: Session = Depends(get_db)
+) -> HTMLResponse | RedirectResponse:
     item = db.query(Item).filter(Item.id == item_id).first()
     if not item:
         return RedirectResponse(url="/pages/items", status_code=303)
@@ -179,7 +178,7 @@ def item_update(
     category_id: str = Form(""),
     is_active: str | None = Form(None),
     db: Session = Depends(get_db),
-):
+) -> RedirectResponse:
     item = db.query(Item).filter(Item.id == item_id).first()
     if not item:
         return RedirectResponse(url="/pages/items", status_code=303)
@@ -192,7 +191,7 @@ def item_update(
 
 
 @router.post("/items/{item_id}/delete")
-def item_delete(item_id: int, db: Session = Depends(get_db)):
+def item_delete(item_id: int, db: Session = Depends(get_db)) -> RedirectResponse:
     item = db.query(Item).filter(Item.id == item_id).first()
     if item:
         db.delete(item)
@@ -204,13 +203,13 @@ def item_delete(item_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/categories", response_class=HTMLResponse)
-def categories_list(request: Request, db: Session = Depends(get_db)):
+def categories_list(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     categories = db.query(Category).all()
     return _render(request, "categories.html", db, categories=categories)
 
 
 @router.get("/categories/new", response_class=HTMLResponse)
-def category_new(request: Request, db: Session = Depends(get_db)):
+def category_new(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     return _render(request, "category_form.html", db, category=None)
 
 
@@ -220,7 +219,7 @@ def category_create(
     name: str = Form(),
     description: str = Form(""),
     db: Session = Depends(get_db),
-):
+) -> RedirectResponse:
     category = Category(name=name, description=description or None)
     db.add(category)
     db.commit()
@@ -228,7 +227,9 @@ def category_create(
 
 
 @router.get("/categories/{category_id}/edit", response_class=HTMLResponse)
-def category_edit(category_id: int, request: Request, db: Session = Depends(get_db)):
+def category_edit(
+    category_id: int, request: Request, db: Session = Depends(get_db)
+) -> HTMLResponse | RedirectResponse:
     category = db.query(Category).filter(Category.id == category_id).first()
     if not category:
         return RedirectResponse(url="/pages/categories", status_code=303)
@@ -242,7 +243,7 @@ def category_update(
     name: str = Form(),
     description: str = Form(""),
     db: Session = Depends(get_db),
-):
+) -> RedirectResponse:
     category = db.query(Category).filter(Category.id == category_id).first()
     if not category:
         return RedirectResponse(url="/pages/categories", status_code=303)
@@ -253,7 +254,9 @@ def category_update(
 
 
 @router.post("/categories/{category_id}/delete")
-def category_delete(category_id: int, db: Session = Depends(get_db)):
+def category_delete(
+    category_id: int, db: Session = Depends(get_db)
+) -> RedirectResponse:
     category = db.query(Category).filter(Category.id == category_id).first()
     if category:
         db.delete(category)
