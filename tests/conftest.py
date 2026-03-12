@@ -60,3 +60,42 @@ def auth_header(client):
     )
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+def _register_and_set_role(client, db, username, email, role):
+    """Helper: register user, set role, return auth header."""
+    from app.models.user import User
+
+    client.post(
+        "/auth/register",
+        json={"username": username, "email": email, "password": "testpass"},
+    )
+    user = db.query(User).filter(User.username == username).first()
+    user.role = role
+    db.commit()
+    resp = client.post(
+        "/auth/login",
+        data={"username": username, "password": "testpass"},
+    )
+    token = resp.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture()
+def admin_header(client, db):
+    """Return auth header for an admin user."""
+    return _register_and_set_role(client, db, "adminuser", "admin@test.com", "admin")
+
+
+@pytest.fixture()
+def member_header(client, db):
+    """Return auth header for a member user."""
+    return _register_and_set_role(
+        client, db, "memberuser", "member@test.com", "member"
+    )
+
+
+@pytest.fixture()
+def fan_header(client, db):
+    """Return auth header for a fan user."""
+    return _register_and_set_role(client, db, "fanuser", "fan@test.com", "fan")
