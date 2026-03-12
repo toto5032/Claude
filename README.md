@@ -1,6 +1,6 @@
 # Claude CRUD App
 
-A CRUD web application built with **FastAPI**, **SQLAlchemy**, and **SQLite**.
+A CRUD web application built with **FastAPI**, **SQLAlchemy**, and **PostgreSQL**.
 
 ## Features
 
@@ -8,12 +8,22 @@ A CRUD web application built with **FastAPI**, **SQLAlchemy**, and **SQLite**.
 - Automatic API documentation (Swagger UI & ReDoc)
 - Database migrations with Alembic
 - Comprehensive test suite
+- Docker Compose setup with PostgreSQL
 
 ## Requirements
 
 - Python 3.11+
+- PostgreSQL 16+ (or Docker)
 
-## Setup
+## Quick Start with Docker
+
+```bash
+docker compose up --build
+```
+
+This starts both PostgreSQL and the app. The API will be available at http://localhost:8000.
+
+## Local Development Setup
 
 ```bash
 # Create virtual environment
@@ -23,11 +33,21 @@ source .venv/bin/activate  # Linux/macOS
 
 # Install dependencies
 pip install -e ".[dev]"
+
+# Start PostgreSQL (via Docker)
+docker compose up db -d
+
+# Run database migrations
+alembic upgrade head
 ```
 
 ## Running
 
 ```bash
+# With Docker (recommended)
+docker compose up --build
+
+# Local development
 uvicorn app.main:app --reload
 ```
 
