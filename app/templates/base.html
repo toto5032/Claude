@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Claude CRUD App{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <a href="/" class="brand">Claude CRUD</a>
+      <div class="nav-links">
+        <a href="/pages/items">Items</a>
+        <a href="/pages/categories">Categories</a>
+        {% if user %}
+          <span class="text-muted">{{ user.username }}</span>
+          <a href="/pages/logout">Logout</a>
+        {% else %}
+          <a href="/pages/login">Login</a>
+          <a href="/pages/register">Register</a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+  <div class="container">
+    {% if flash_message %}
+      <div class="flash {{ flash_type or 'success' }}">{{ flash_message }}</div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

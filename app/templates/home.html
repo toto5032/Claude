@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<div class="card" style="text-align: center; padding: 3rem 1.5rem;">
+  <h1 style="font-size: 2rem; margin-bottom: 0.5rem;">Claude CRUD App</h1>
+  <p class="text-muted mb-1">A simple CRUD application built with FastAPI</p>
+  <div style="display: flex; gap: 1rem; justify-content: center;">
+    <a href="/pages/items" class="btn btn-primary">Items</a>
+    <a href="/pages/categories" class="btn btn-primary">Categories</a>
+  </div>
+</div>
+{% endblock %}
